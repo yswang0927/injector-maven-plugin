@@ -23,7 +23,7 @@
 <dependency>
     <groupId>com.gdk</groupId>
     <artifactId>injector-maven-plugin</artifactId>
-    <version>1.0.0</version>
+    <version>0.2</version>
     <scope>provided</scope>
 </dependency>
 
