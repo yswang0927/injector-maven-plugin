@@ -21,7 +21,7 @@
 </dependency>
 
 <dependency>
-    <groupId>com.fh.gdk</groupId>
+    <groupId>com.gdk</groupId>
     <artifactId>injector-maven-plugin</artifactId>
     <version>1.0.0</version>
     <scope>provided</scope>
@@ -29,9 +29,9 @@
 
 <!-- 增加插件 -->
 <plugin>
-    <groupId>com.fh.gdk</groupId>
+    <groupId>com.gdk</groupId>
     <artifactId>injector-maven-plugin</artifactId>
-    <version>1.0.0</version>
+    <version>0.2</version>
     <configuration>
         <includeTestClasses>false</includeTestClasses>
         <transformerClasses>
@@ -57,8 +57,16 @@
     </executions>
 </plugin>
 
-<!-- 可以配置 maven-jar-plugin 插件，将转换器代码从jar包排除 -->
-
+<!-- 可选：可以配置 maven-jar-plugin 插件，将转换器代码从jar包排除 -->
+<plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-jar-plugin</artifactId>
+    <configuration>
+        <excludes>
+            <exclude>demo/license/**</exclude>
+        </excludes>
+    </configuration>
+</plugin>
 
 ```
 2. 实现自己的字节码转换器，例如：
@@ -69,7 +77,7 @@ package demo.license;
 import java.util.Properties;
 
 import com.gdk.maven.plugin.injector.ClassTransformer;
-import com.gdk.core.DemoController;
+import demo.DemoController;
 import javassist.*;
 
 /**
