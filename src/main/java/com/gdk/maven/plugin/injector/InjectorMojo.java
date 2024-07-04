@@ -150,7 +150,7 @@ public class InjectorMojo extends AbstractMojo {
             classPath.add(resolveUrl(inputDirectory));
             loadAdditionalClassPath(classPath);
 
-            final InjectTransformerExecutor executor = new InjectTransformerExecutor();
+            final InjectTransformerExecutor executor = new InjectTransformerExecutor(getLog());
             executor.setTransformerClasses(instantiateTransformerClasses(Thread.currentThread().getContextClassLoader(), transformerClasses));
             executor.setInputDirectory(inputDirectory);
             executor.setOutputDirectory(inputDirectory);

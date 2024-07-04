@@ -1,14 +1,8 @@
 package com.gdk.maven.plugin.injector;
 
-import static org.apache.commons.io.FilenameUtils.removeExtension;
-
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 /**
  * Provides methods for extract class name from file name.
@@ -16,7 +10,56 @@ import java.util.List;
 public class ClassnameExtractor {
 
     private ClassnameExtractor() {
-        // private constructor for utility class
+    }
+
+    public static Iterator<File> iterateFiles(File dir, String[] extensions) {
+        List<File> fileList = new ArrayList<>();
+        if (dir != null && dir.isDirectory()) {
+            iterateFiles(dir, extensions, fileList);
+        }
+        return fileList.iterator();
+    }
+
+    private static void iterateFiles(File dir, String[] extensions, List<File> fileList) {
+        File[] files = dir.listFiles();
+        if (files != null) {
+            for (File file : files) {
+                if (file.isDirectory()) {
+                    iterateFiles(file, extensions, fileList);
+                } else {
+                    if (extensions == null || extensions.length == 0) {
+                        fileList.add(file);
+                    } else {
+                        for (String extension : extensions) {
+                            if (file.getName().endsWith(extension)) {
+                                fileList.add(file);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    public static String removeExtension(String filename) {
+        if (filename == null) {
+            return null;
+        }
+
+        final int lastDotIndex = filename.lastIndexOf('.');
+        if (lastDotIndex == -1) {
+            return filename;
+        }
+
+        final int lastUnixPos = filename.lastIndexOf('/');
+        final int lastWindowsPos = filename.lastIndexOf('\\');
+        final int lastSeparator = Math.max(lastUnixPos, lastWindowsPos);
+        if (lastSeparator > lastDotIndex) {
+            return filename;
+        }
+
+        return filename.substring(0, lastDotIndex);
     }
 
     /**
@@ -38,10 +81,12 @@ public class ClassnameExtractor {
         if (null == classFile) {
             return null;
         }
+
         final String qualifiedFileName = parentDirectory != null
                 ? classFile.getCanonicalPath()
                 .substring(parentDirectory.getCanonicalPath().length() + 1)
                 : classFile.getCanonicalPath();
+
         return removeExtension(qualifiedFileName.replace(File.separator, "."));
     }
 

@@ -10,19 +10,12 @@ import javassist.*;
 import javassist.CtField.Initializer;
 import javassist.bytecode.AccessFlag;
 import javassist.bytecode.ClassFile;
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.filefilter.IOFileFilter;
-import org.apache.commons.io.filefilter.SuffixFileFilter;
-import org.apache.commons.io.filefilter.TrueFileFilter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.maven.plugin.logging.Log;
 
 /**
  * Executor to perform the transformation by a list of {@link IClassTransformer} instances.
  */
 public class InjectTransformerExecutor {
-    private static final Logger LOGGER = LoggerFactory.getLogger(InjectTransformerExecutor.class);
-
     /**
      * Stamp field name prefix.
      */
@@ -32,8 +25,10 @@ public class InjectTransformerExecutor {
     private String inputDirectory;
     private String outputDirectory;
 
-    public InjectTransformerExecutor() {
-        super();
+    private Log log;
+
+    public InjectTransformerExecutor(Log log) {
+        this.log = log;
     }
 
     /**
@@ -217,11 +212,11 @@ public class InjectTransformerExecutor {
                     continue;
                 }
 
-                try {
-                    if (LOGGER.isDebugEnabled()) {
-                        LOGGER.debug("Got class name {}", className);
-                    }
+                if (log != null && log.isDebugEnabled()) {
+                    log.debug(String.format("Got class name %s", className));
+                }
 
+                try {
                     classPool.importPackage(className);
                     final CtClass candidateClass = classPool.get(className);
                     initializeClass(classPool, candidateClass);
@@ -242,23 +237,31 @@ public class InjectTransformerExecutor {
                         }
 
                         candidateClass.writeFile(outDirectory);
-                        if (LOGGER.isDebugEnabled()) {
-                            LOGGER.debug("Class {} instrumented by {}", className, getName(transformer));
+
+                        if (log != null && log.isDebugEnabled()) {
+                            log.debug(String.format("Class %s instrumented by %s", className, getName(transformer)));
                         }
+
                         ++classCounter;
                     }
 
                 } catch (NotFoundException e) {
-                    LOGGER.warn("Class {} could not be resolved due to dependencies not found on "
-                            + "current classpath (usually your class depends on \"provided\""
-                            + " scoped dependencies).", className);
+                    if (log != null) {
+                        log.warn(String.format("Class %s could not be resolved due to dependencies not found on "
+                                + "current classpath (usually your class depends on \"provided\""
+                                + " scoped dependencies).", className));
+                    }
                 } catch (Exception ex) {
-                    // EOFException → IOException...
-                    LOGGER.error("Class {} could not be instrumented due to initialize FAILED.", className, ex);
+                    if (log != null) {
+                        log.error(String.format("Class %s could not be instrumented due to initialize FAILED.", className), ex);
+                    }
                 }
             }
 
-            LOGGER.info("#{} classes instrumented by {}", classCounter, getName(transformer));
+            if (log != null) {
+                log.info(String.format("%d classes instrumented by %s", classCounter, getName(transformer)));
+            }
+
         } catch (Exception e) {
             throw new RuntimeException(e.getMessage(), e);
         }
@@ -322,9 +325,6 @@ public class InjectTransformerExecutor {
      * @return iterator of full qualified class names and never {@code null}
      * @throws NullPointerException if passed {@code directory} is {@code null}.
      *
-     * @see SuffixFileFilter
-     * @see TrueFileFilter
-     * @see FileUtils#iterateFiles(File, IOFileFilter, IOFileFilter)
      * @see ClassnameExtractor#iterateClassnames(File, Iterator)
      */
     protected Iterator<String> iterateClassnames(final String directory) {
@@ -333,9 +333,7 @@ public class InjectTransformerExecutor {
             return Collections.emptyIterator();
         }
         final String[] extensions = {".class"};
-        final IOFileFilter fileFilter = new SuffixFileFilter(extensions);
-        final IOFileFilter dirFilter = TrueFileFilter.INSTANCE;
-        return ClassnameExtractor.iterateClassnames(dir, FileUtils.iterateFiles(dir, fileFilter, dirFilter));
+        return ClassnameExtractor.iterateClassnames(dir, ClassnameExtractor.iterateFiles(dir, extensions));
     }
 
     /**
@@ -404,9 +402,11 @@ public class InjectTransformerExecutor {
             hasStamp = false;
         }
 
-        if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("Stamp {}{} found in class {}", createStampFieldName(transformer),
-                    (hasStamp ? "" : " NOT"), candidateClass.getName());
+        if (log != null && log.isDebugEnabled()) {
+            log.debug(String.format("Stamp %s %s found in class %s",
+                    createStampFieldName(transformer),
+                    (hasStamp ? "" : " NOT"),
+                    candidateClass.getName()));
         }
 
         return hasStamp;
@@ -461,27 +461,29 @@ public class InjectTransformerExecutor {
     }
 
     private void debugClassFile(final ClassFile classFile) {
-        if (!LOGGER.isDebugEnabled()) {
+        /*
+        if (log == null || !log.isDebugEnabled()) {
             return;
         }
-
-        LOGGER.debug(" - class: {}", classFile.getName());
-        LOGGER.debug(" -- Java version: {}.{}", classFile.getMajorVersion(), classFile.getMinorVersion());
-        LOGGER.debug(" -- interface: {} abstract: {} final: {}", classFile.isInterface(), classFile.isAbstract(), classFile.isFinal());
-        LOGGER.debug(" -- extends class: {}", classFile.getSuperclass());
-        LOGGER.debug(" -- implements interfaces: {}", Arrays.deepToString(classFile.getInterfaces()));
+        log.debug(String.format(" - class: %s", classFile.getName()));
+        log.debug(String.format(" -- Java version: %d.%d", classFile.getMajorVersion(), classFile.getMinorVersion()));
+        log.debug(String.format(" -- interface: %b abstract: %b final: %b", classFile.isInterface(), classFile.isAbstract(), classFile.isFinal()));
+        log.debug(String.format(" -- extends class: %s", classFile.getSuperclass()));
+        log.debug(String.format(" -- implements interfaces: %s", Arrays.deepToString(classFile.getInterfaces())));
+        */
     }
 
     private void debugClassLoader(final ClassPool classPool) {
-        if (!LOGGER.isDebugEnabled()) {
+        if (log == null || !log.isDebugEnabled()) {
             return;
         }
-        LOGGER.debug(" - classPool: {}", classPool.toString());
+
+        log.debug(String.format(" - classPool: %s", classPool.toString()));
         ClassLoader classLoader = classPool.getClassLoader();
         while (classLoader != null) {
-            LOGGER.debug(" -- {}: {}", classLoader.getClass().getName(), classLoader.toString());
+            log.debug(String.format(" -- %s: %s", classLoader.getClass().getName(), classLoader.toString()));
             if (classLoader instanceof URLClassLoader) {
-                LOGGER.debug(" --- urls: {}", Arrays.deepToString(((URLClassLoader)classLoader).getURLs()));
+                log.debug(String.format(" --- urls: %s", Arrays.deepToString(((URLClassLoader) classLoader).getURLs())));
             }
             classLoader = classLoader.getParent();
         }
