@@ -2,9 +2,7 @@ package com.gdk.maven.plugin.injector;
 
 import java.io.File;
 import java.net.URLClassLoader;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Iterator;
+import java.util.*;
 
 import javassist.*;
 import javassist.CtField.Initializer;
@@ -26,9 +24,12 @@ public class InjectTransformerExecutor {
     private String outputDirectory;
 
     private Log log;
+    // 存储转换过的class，避免重复转换
+    private Set<String> transformedClasses = new HashSet<>(1024);
 
     public InjectTransformerExecutor(Log log) {
         this.log = log;
+        this.transformedClasses.clear();
     }
 
     /**
@@ -221,18 +222,26 @@ public class InjectTransformerExecutor {
                     final CtClass candidateClass = classPool.get(className);
                     initializeClass(classPool, candidateClass);
 
-                    if (!hasStamp(transformer, candidateClass) && transformer.shouldTransform(candidateClass)) {
-                        transformer.applyTransformations(candidateClass);
-                        applyStamp(transformer, candidateClass);
+                    // 不通过创建一个特殊的field来标记是否被转换过，使用 Set<String> 来记录转换过的类名称
+                    //if (!hasStamp(transformer, candidateClass) && transformer.shouldTransform(candidateClass, classPool)) {
+                    if (transformer.shouldTransform(candidateClass, classPool) && !transformedClasses.contains(className)) {
+                        transformer.applyTransformations(candidateClass, classPool);
+                        //applyStamp(transformer, candidateClass);
+                        transformedClasses.add(className);
+
                         // #48
                         for (final CtClass nestedClass : candidateClass.getNestedClasses()) {
-                            if (!nestedClass.isModified() || hasStamp(transformer, nestedClass)) {
+                            String nestedClassName = nestedClass.getName();
+                            //if (!nestedClass.isModified() || hasStamp(transformer, nestedClass)) {
+                            if (!nestedClass.isModified() || transformedClasses.contains(nestedClassName)) {
                                 continue;
                             }
 
-                            final CtClass nestedCtClass = classPool.get(nestedClass.getName());
+                            final CtClass nestedCtClass = classPool.get(nestedClassName);
                             initializeClass(classPool, nestedCtClass);
-                            applyStamp(transformer, nestedCtClass);
+                            //applyStamp(transformer, nestedCtClass);
+                            transformedClasses.add(nestedClassName);
+
                             nestedCtClass.writeFile(outDirectory);
                         }
 

@@ -4,7 +4,7 @@
 
     <groupId>com.gdk</groupId>
     <artifactId>injector-maven-plugin</artifactId>
-    <version>0.2</version>
+    <version>0.3</version>
     <packaging>maven-plugin</packaging>
 
     <name>injector-maven-plugin</name>

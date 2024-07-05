@@ -1,5 +1,6 @@
 package com.gdk.maven.plugin.injector;
 
+import javassist.ClassPool;
 import javassist.CtClass;
 
 /**
@@ -19,18 +20,20 @@ public interface IClassTransformer {
      * Override this method to boost class transformations and discard classes you don't want
      * to transform.
      *
-     * @param ctClass
+     * @param ctClass The class should be to transform.
+     * @param classPool The current ClassPool
      * @return {@code true} if the Class should be transformed; {@code false} otherwise.
      */
-    boolean shouldTransform(CtClass ctClass);
+    boolean shouldTransform(CtClass ctClass, ClassPool classPool);
 
     /**
      * <p>Concrete implementations must implement all transformations on this method.
      * You can use Javassist API to add/remove/replace methods, attributes and more.
-     * Only classes approved by {@link #shouldTransform(CtClass)} are considered.</p>
+     * Only classes approved by {@link #shouldTransform(CtClass, ClassPool)} are considered.</p>
      *
      * @param ctClass The class to transform.
+     * @param classPool The current ClassPool
      */
-    void applyTransformations(CtClass ctClass);
+    void applyTransformations(CtClass ctClass, ClassPool classPool);
 
 }
