@@ -23,7 +23,7 @@
 <dependency>
     <groupId>com.gdk</groupId>
     <artifactId>injector-maven-plugin</artifactId>
-    <version>0.2</version>
+    <version>0.3</version>
     <scope>provided</scope>
 </dependency>
 
@@ -31,7 +31,7 @@
 <plugin>
     <groupId>com.gdk</groupId>
     <artifactId>injector-maven-plugin</artifactId>
-    <version>0.2</version>
+    <version>0.3</version>
     <configuration>
         <includeTestClasses>false</includeTestClasses>
         <transformerClasses>
@@ -87,19 +87,19 @@ public class InsertCodeTransformer extends ClassTransformer {
     private String myCode;
 
     @Override
-    public boolean shouldTransform(final CtClass candidateClass) {
+    public boolean shouldTransform(final CtClass candidateClass, final ClassPool classPool) {
         // 只处理 DemoController 这个类
         try {
-            CtClass myInterface = ClassPool.getDefault().get(DemoController.class.getName());
-            return !candidateClass.equals(myInterface) && candidateClass.subtypeOf(myInterface);
+            CtClass myClass = classPool.get(DemoController.class.getName());
+            return candidateClass.equals(myClass) || candidateClass.subtypeOf(myClass);
         } catch (Exception e) {
-            //ignore
+            e.printStackTrace();
         }
         return false;
     }
 
     @Override
-    public void applyTransformations(CtClass classToTransform) {
+    public void applyTransformations(final CtClass classToTransform, final ClassPool classPool) {
         if (this.myCode == null || this.myCode.isEmpty()) {
             return;
         }
@@ -111,7 +111,7 @@ public class InsertCodeTransformer extends ClassTransformer {
                 // 在方法前面插入配置的一段代码
                 m.insertBefore(this.myCode);
             }
-        } catch (CannotCompileException e) {
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
