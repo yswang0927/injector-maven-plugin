@@ -9,6 +9,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
 
+import org.apache.maven.artifact.Artifact;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
@@ -139,16 +140,20 @@ public class InjectorMojo extends AbstractMojo {
         final ClassLoader originalContextClassLoader = Thread.currentThread().getContextClassLoader();
 
         try {
-            final List<URL> classPath = new ArrayList<URL>();
-
-            for (final String runtimeResource : project.getRuntimeClasspathElements()) {
-                classPath.add(resolveUrl(runtimeResource));
-            }
-
             final String inputDirectory = (null == buildDir) ? project.getBuild().getOutputDirectory() : computeDir(buildDir);
 
-            classPath.add(resolveUrl(inputDirectory));
-            loadAdditionalClassPath(classPath);
+            final List<URL> classPaths = new ArrayList<URL>(512);
+            // 使用全量的classpath环境，否则会出现class-not-found问题
+            for (Artifact a : project.getArtifacts()) {
+                if (a.getArtifactHandler().isAddedToClasspath()) {
+                    if (a.getFile() != null) {
+                        classPaths.add(resolveUrl(a.getFile()));
+                    }
+                }
+            }
+            classPaths.add(resolveUrl(inputDirectory));
+
+            loadAdditionalClassPath(classPaths);
 
             final InjectTransformerExecutor executor = new InjectTransformerExecutor(getLog());
             executor.setTransformerClasses(instantiateTransformerClasses(Thread.currentThread().getContextClassLoader(), transformerClasses));
@@ -158,9 +163,10 @@ public class InjectorMojo extends AbstractMojo {
 
             if (includeTestClasses) {
                 final String testInputDirectory = (null == testBuildDir) ? project.getBuild().getTestOutputDirectory() : computeDir(testBuildDir);
-                classPath.add(resolveUrl(testInputDirectory));
+                classPaths.add(resolveUrl(testInputDirectory));
                 executor.setInputDirectory(testInputDirectory);
                 executor.setOutputDirectory(testInputDirectory);
+                executor.appendClassPath(testInputDirectory);
                 executor.execute();
             }
 
@@ -273,9 +279,13 @@ public class InjectorMojo extends AbstractMojo {
     }
 
     private URL resolveUrl(final String resource) {
+        return resolveUrl(new File(resource));
+    }
+
+    private URL resolveUrl(final File file) {
         try {
-            return new File(resource).toURI().toURL();
-        } catch (final MalformedURLException e) {
+            return file.toURI().toURL();
+        } catch (MalformedURLException e) {
             throw new RuntimeException(e.getMessage(), e);
         }
     }

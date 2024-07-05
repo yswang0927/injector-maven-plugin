@@ -23,13 +23,40 @@ public class InjectTransformerExecutor {
     private String inputDirectory;
     private String outputDirectory;
 
-    private Log log;
+    private final Log log;
+    private final ClassPool classPool;
+
     // 存储转换过的class，避免重复转换
     private Set<String> transformedClasses = new HashSet<>(1024);
 
     public InjectTransformerExecutor(Log log) {
         this.log = log;
+
+        this.classPool = new ClassPool(ClassPool.getDefault());
+        this.classPool.childFirstLookup = true;
+        this.classPool.appendSystemPath();
+
         this.transformedClasses.clear();
+    }
+
+    public void appendClassPath(String classpath) {
+        if (classpath != null && !classpath.isEmpty()) {
+            try {
+                this.classPool.appendClassPath(classpath);
+            } catch (NotFoundException e) {
+                if (this.log != null) {
+                    this.log.warn("Classpath could not be found: "+ classpath);
+                }
+            }
+        }
+    }
+
+    public void appendClassPaths(Collection<String> classpaths) {
+        if (classpaths != null && !classpaths.isEmpty()) {
+            for (String cpath : classpaths) {
+                this.appendClassPath(cpath);
+            }
+        }
     }
 
     /**
@@ -93,6 +120,8 @@ public class InjectTransformerExecutor {
      * @see #execute(IClassTransformer)
      */
     public void execute() {
+        this.classPool.appendClassPath(new LoaderClassPath(Thread.currentThread().getContextClassLoader()));
+
         for (final IClassTransformer transformer : transformerInstances) {
             execute(transformer);
         }
@@ -203,7 +232,8 @@ public class InjectTransformerExecutor {
 
         final String inDirectory = inputDir.trim();
         try {
-            final ClassPool classPool = configureClassPool(buildClassPool(), inDirectory);
+            // 使用全局变量 ClassPool
+            //final ClassPool classPool = configureClassPool(buildClassPool(), inDirectory);
             final String outDirectory = evaluateOutputDirectory(outputDir, inDirectory);
             int classCounter = 0;
 
